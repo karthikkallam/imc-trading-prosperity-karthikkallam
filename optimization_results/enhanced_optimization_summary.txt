@@ -1,0 +1,45 @@
+ENHANCED OPTIMIZATION SUMMARY
+===========================
+
+RAINFOREST_RESIN - MEAN_REVERSION
+--------------------------------------------------
+Best PnL: 0.00
+Sharpe Ratio: 0.00
+Max Drawdown: 0.00%
+Number of Trades: 0
+Optimization Time: 50.62 seconds
+Parameters:
+  window_size: 12
+  entry_threshold: 1.4467450565847975
+  exit_threshold: 0.23387256951081775
+  position_limit: 39
+  order_size: 25
+
+KELP - MEAN_REVERSION
+--------------------------------------------------
+Best PnL: 0.00
+Sharpe Ratio: 0.00
+Max Drawdown: 0.00%
+Number of Trades: 0
+Optimization Time: 50.30 seconds
+Parameters:
+  window_size: 31
+  entry_threshold: 0.3123342125548585
+  exit_threshold: 0.7522881321458054
+  position_limit: 46
+  order_size: 22
+
+SQUID_INK - ORDER_BOOK_IMBALANCE
+--------------------------------------------------
+Best PnL: 5302.50
+Sharpe Ratio: 0.32
+Max Drawdown: 320.00%
+Number of Trades: 9
+Optimization Time: 98.70 seconds
+Parameters:
+  imbalance_threshold: 0.18101622796599864
+  take_profit: 4.0
+  stop_loss: 1.4036130762296066
+  position_limit: 42
+  order_size: 21
+

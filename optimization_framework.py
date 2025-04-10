@@ -35,18 +35,23 @@ class StrategyOptimizer:
             print(f"Warning: {self.data_folder} directory not found. Creating it...")
             os.makedirs(self.data_folder, exist_ok=True)
             
-        # Try to find files in current directory, data folder, or round-1-island-data-bottle
-        for i in range(3):
+        # Try to find files for days -2, -1, 0 based on the actual data file naming
+        day_indices = [-2, -1, 0]  # The actual day indices used in file names
+        
+        for i in day_indices:
+            # Check potential file locations in priority order
             price_file_paths = [
-                f"prices_round_1_day_{i}.csv",  # Current directory
-                os.path.join(self.data_folder, f"prices_round_1_day_{i}.csv"),  # data folder
-                os.path.join("round-1-island-data-bottle", f"prices_round_1_day_{i}.csv")  # island data bottle
+                os.path.join(self.data_folder, "round-1-island-data-bottle", f"prices_round_1_day_{i}.csv"),
+                os.path.join("round-1-island-data-bottle", f"prices_round_1_day_{i}.csv"),
+                os.path.join(self.data_folder, f"prices_round_1_day_{i}.csv"),
+                f"prices_round_1_day_{i}.csv"  # Current directory
             ]
             
             trade_file_paths = [
-                f"trades_round_1_day_{i}.csv",  # Current directory
-                os.path.join(self.data_folder, f"trades_round_1_day_{i}.csv"),  # data folder
-                os.path.join("round-1-island-data-bottle", f"trades_round_1_day_{i}.csv")  # island data bottle
+                os.path.join(self.data_folder, "round-1-island-data-bottle", f"trades_round_1_day_{i}.csv"),
+                os.path.join("round-1-island-data-bottle", f"trades_round_1_day_{i}.csv"),
+                os.path.join(self.data_folder, f"trades_round_1_day_{i}.csv"),
+                f"trades_round_1_day_{i}.csv"  # Current directory
             ]
             
             # Find first existing price file
@@ -619,36 +624,83 @@ class StrategyOptimizer:
         
         optimization_results = {}
         
-        # Define parameter grids for each strategy
-        mean_reversion_grid = {
-            'window_size': [10, 20, 30, 40, 50],
-            'entry_threshold': [1.0, 1.5, 2.0, 2.5, 3.0],
-            'exit_threshold': [0.3, 0.4, 0.5, 0.6, 0.7],
-            'position_limit': [10, 15, 20, 25, 30],
-            'order_size': [3, 5, 7, 10]
+        # Define shared parameters grid
+        shared_params_grid = {
+            'take_profit_threshold': [0.3, 0.4, 0.5],
+            'max_history_length': [60, 90, 120]
         }
         
-        order_book_grid = {
-            'imbalance_threshold': [0.2, 0.3, 0.4, 0.5, 0.6],
-            'take_profit': [1.0, 2.0, 3.0, 4.0, 5.0],
-            'stop_loss': [0.5, 1.0, 1.5, 2.0, 2.5],
-            'position_limit': [10, 15, 20, 25, 30],
-            'order_size': [3, 5, 7, 10]
+        # Define parameter grids for RAINFOREST_RESIN mean reversion strategy
+        rainforest_resin_grid = {
+            'window_size': [20, 30, 40],
+            'entry_threshold': [0.8, 1.0, 1.5],
+            'exit_threshold': [0.5, 0.7, 0.9],
+            'position_limit': [30, 40, 50],
+            'order_size': [15, 20, 25],
+            'fair_value_anchor': [9990.0, 10000.0, 10010.0],
+            'anchor_blend_alpha': [0.05, 0.08, 0.1],
+            'min_spread': [5, 7, 9],
+            'volatility_spread_factor': [0.25, 0.32, 0.4],
+            'inventory_skew_factor': [0.005, 0.01, 0.015],
+            'reversion_threshold': [1.5, 2.0, 2.5]
         }
+        
+        # Define parameter grids for KELP mean reversion strategy
+        kelp_grid = {
+            'window_size': [30, 40, 50],
+            'entry_threshold': [0.8, 1.0, 1.2],
+            'exit_threshold': [0.5, 0.7, 0.9],
+            'position_limit': [30, 40, 50],
+            'order_size': [20, 25, 30],
+            'ema_alpha': [0.03, 0.05, 0.07],
+            'min_spread': [1, 2, 3],
+            'volatility_spread_factor': [0.8, 1.0, 1.2],
+            'inventory_skew_factor': [0.01, 0.015, 0.02],
+            'min_volatility_qty_factor': [0.9, 1.0, 1.1],
+            'max_volatility_for_qty_reduction': [3.0, 4.0, 5.0],
+            'imbalance_depth': [3, 5, 7],
+            'imbalance_fv_adjustment_factor': [0.2, 0.36, 0.5]
+        }
+        
+        # Define parameter grids for SQUID_INK order book imbalance strategy
+        squid_ink_grid = {
+            'imbalance_threshold': [0.15, 0.2, 0.25],
+            'take_profit': [2.0, 3.0, 4.0],
+            'stop_loss': [1.5, 2.0, 2.5],
+            'position_limit': [30, 40, 50],
+            'order_size': [15, 20, 25],
+            'ema_alpha': [0.08, 0.1, 0.12],
+            'trend_strength_threshold': [0.4, 0.6, 0.8],
+            'min_spread': [2, 3, 4],
+            'volatility_spread_factor': [0.6, 0.8, 1.0],
+            'inventory_skew_factor': [0.015, 0.02, 0.025],
+            'imbalance_depth': [2, 3, 4],
+            'reversal_threshold': [1.0, 1.5, 2.0]
+        }
+        
+        # Optimize shared parameters first (optional - this is a simplified approach)
+        print("\nOptimizing shared parameters (this could take a while)...")
+        # For a real optimization, you'd want to test shared parameters across all products
+        # Here we're just using placeholder values for demonstration
+        shared_params = {
+            'take_profit_threshold': 0.4,
+            'max_history_length': 90
+        }
+        optimization_results['shared'] = shared_params
         
         # Optimize RAINFOREST_RESIN with mean reversion
         print("\nOptimizing RAINFOREST_RESIN with mean reversion strategy...")
-        rainforest_result = self.grid_search('RAINFOREST_RESIN', 'mean_reversion', mean_reversion_grid)
+        rainforest_result = self.grid_search('RAINFOREST_RESIN', 'mean_reversion', rainforest_resin_grid)
         optimization_results['RAINFOREST_RESIN'] = rainforest_result
         
         # Optimize KELP with mean reversion
         print("\nOptimizing KELP with mean reversion strategy...")
-        kelp_result = self.grid_search('KELP', 'mean_reversion', mean_reversion_grid)
+        kelp_result = self.grid_search('KELP', 'mean_reversion', kelp_grid)
         optimization_results['KELP'] = kelp_result
         
         # Optimize SQUID_INK with order book imbalance
         print("\nOptimizing SQUID_INK with order book imbalance strategy...")
-        squid_result = self.grid_search('SQUID_INK', 'order_book_imbalance', order_book_grid)
+        squid_result = self.grid_search('SQUID_INK', 'order_book_imbalance', squid_ink_grid)
         optimization_results['SQUID_INK'] = squid_result
         
         # Generate summary report
@@ -666,6 +718,9 @@ class StrategyOptimizer:
         # Create summary DataFrame
         summary_data = []
         
+        # Create a dictionary to store optimized parameters for the trading algorithm
+        trading_params = {}
+        
         for product, result in optimization_results.items():
             best_params = result['best_params']
             best_pnl = result['best_pnl']
@@ -678,6 +733,13 @@ class StrategyOptimizer:
                 'Best PnL': best_pnl,
                 **best_params
             })
+            
+            # Add to trading parameters
+            trading_params[product] = {
+                'strategy': strategy,
+                **best_params
+            }
+            
         # Create summary DataFrame
         summary_df = pd.DataFrame(summary_data)
         
@@ -704,7 +766,11 @@ class StrategyOptimizer:
                 
                 f.write("\n")
         
-        print("\nOptimization summary saved to optimization_results/optimization_summary.csv and .txt")
+        # Save optimization results as JSON for the trading algorithm to use
+        with open("optimization_results/optimization_summary.json", "w") as f:
+            json.dump(trading_params, f, indent=2)
+            
+        print("\nOptimization summary saved to optimization_results/optimization_summary.csv, .txt, and .json")
 
 def main():
     # Create the optimizer

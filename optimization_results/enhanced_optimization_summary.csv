@@ -1,0 +1,4 @@
+Product,Strategy,Best PnL,Sharpe Ratio,Max Drawdown,Trades,Optimization Time,window_size,entry_threshold,exit_threshold,position_limit,order_size,imbalance_threshold,take_profit,stop_loss
+RAINFOREST_RESIN,mean_reversion,0.0,0.0,0.0,0,50.61908411979675,12.0,1.4467450565847975,0.23387256951081775,39,25,,,
+KELP,mean_reversion,0.0,0.0,0.0,0,50.30396318435669,31.0,0.3123342125548585,0.7522881321458054,46,22,,,
+SQUID_INK,order_book_imbalance,5302.5,0.32063687564526244,3.2,9,98.6986837387085,,,,42,21,0.18101622796599864,4.0,1.4036130762296066

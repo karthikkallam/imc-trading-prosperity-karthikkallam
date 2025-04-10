@@ -1,0 +1,4 @@
+Product,Strategy,Best PnL,window_size,entry_threshold,exit_threshold,position_limit,order_size,imbalance_threshold,take_profit,stop_loss
+RAINFOREST_RESIN,mean_reversion,142610.0,30.0,1.0,0.7,10,10,,,
+KELP,mean_reversion,35645.0,50.0,1.0,0.7,10,10,,,
+SQUID_INK,order_book_imbalance,665.0,,,,10,10,0.3,5.0,1.0

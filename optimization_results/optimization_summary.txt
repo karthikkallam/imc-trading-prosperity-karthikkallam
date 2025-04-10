@@ -1,0 +1,33 @@
+OPTIMIZATION SUMMARY
+===================
+
+RAINFOREST_RESIN - MEAN_REVERSION
+--------------------------------------------------
+Best PnL: 142610.00
+Parameters:
+  window_size: 30
+  entry_threshold: 1.0
+  exit_threshold: 0.7
+  position_limit: 10
+  order_size: 10
+
+KELP - MEAN_REVERSION
+--------------------------------------------------
+Best PnL: 35645.00
+Parameters:
+  window_size: 50
+  entry_threshold: 1.0
+  exit_threshold: 0.7
+  position_limit: 10
+  order_size: 10
+
+SQUID_INK - ORDER_BOOK_IMBALANCE
+--------------------------------------------------
+Best PnL: 665.00
+Parameters:
+  imbalance_threshold: 0.3
+  take_profit: 5.0
+  stop_loss: 1.0
+  position_limit: 10
+  order_size: 10
+

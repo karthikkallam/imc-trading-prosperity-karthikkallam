@@ -1,0 +1,26 @@
+{
+  "RAINFOREST_RESIN": {
+    "strategy": "mean_reversion",
+    "window_size": 12,
+    "entry_threshold": 1.4467450565847975,
+    "exit_threshold": 0.23387256951081775,
+    "position_limit": 39,
+    "order_size": 25
+  },
+  "KELP": {
+    "strategy": "mean_reversion",
+    "window_size": 31,
+    "entry_threshold": 0.3123342125548585,
+    "exit_threshold": 0.7522881321458054,
+    "position_limit": 46,
+    "order_size": 22
+  },
+  "SQUID_INK": {
+    "strategy": "order_book_imbalance",
+    "imbalance_threshold": 0.18101622796599864,
+    "take_profit": 4.0,
+    "stop_loss": 1.4036130762296066,
+    "position_limit": 42,
+    "order_size": 21
+  }
+}
