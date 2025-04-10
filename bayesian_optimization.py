@@ -12,11 +12,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 import random
+from scipy.stats import norm
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import Matern, ConstantKernel, RBF
 
-class SimpleOptimizer:
+class BayesianOptimizer:
     """
-    Optimization framework for trading strategies using a simplified approach.
-    Uses random search with local optimization to efficiently find parameters.
+    Optimization framework for trading strategies using Bayesian optimization.
+    Efficiently finds optimal parameters using Gaussian Processes and Expected Improvement.
     """
     def __init__(self, data_folder="./data"):
         """
@@ -388,101 +391,182 @@ class SimpleOptimizer:
         else:
             return 0.0  # No valid drawdown points
     
-    def random_search_with_hill_climbing(self, objective_func, param_ranges, n_iterations=50, n_neighbors=5):
+    def _expected_improvement(self, X, X_sample, Y_sample, gpr, xi=0.01):
         """
-        Perform random search with hill climbing to optimize parameters
+        Computes the expected improvement acquisition function.
+        
+        Args:
+            X: Points at which EI shall be computed (m x d).
+            X_sample: Sample locations (n x d).
+            Y_sample: Sample values (n x 1).
+            gpr: A GaussianProcessRegressor fitted to samples.
+            xi: Exploitation-exploration trade-off parameter.
+            
+        Returns:
+            Expected improvements at points X.
+        """
+        mu, sigma = gpr.predict(X, return_std=True)
+        
+        # Check if sigma is 0 (no uncertainty)
+        with np.errstate(divide='ignore'):
+            # Best observed value
+            mu_sample_opt = np.max(Y_sample)
+            
+            # Compute improvement
+            imp = mu - mu_sample_opt - xi
+            
+            # Compute Z-score
+            Z = np.where(sigma > 0, imp / sigma, 0)
+            
+            # Expected improvement
+            ei = np.where(sigma > 0, 
+                        imp * norm.cdf(Z) + sigma * norm.pdf(Z),
+                        0)
+            
+            return ei
+    
+    def bayesian_optimization(self, objective_func, param_ranges, n_iterations=30, n_initial_points=10, xi=0.01):
+        """
+        Perform Bayesian optimization to find the parameters that maximize an objective function.
         
         Args:
             objective_func: Function that takes parameters and returns a value to maximize
             param_ranges: Dictionary of parameter names and their (min, max) ranges
-            n_iterations: Number of random starting points to try
-            n_neighbors: Number of neighbors to try in each hill climbing step
+            n_iterations: Number of iterations for optimization
+            n_initial_points: Number of random initial points to try
+            xi: Exploitation-exploration trade-off parameter
             
         Returns:
             Dictionary of best parameters and their score
         """
-        best_params = None
-        best_score = float('-inf')
+        # Define parameter bounds and names
+        bounds = np.array(list(param_ranges.values()))
+        param_names = list(param_ranges.keys())
         
-        # Initialize progress bar
-        pbar = tqdm(total=n_iterations)
+        # Dimensionality
+        dim = len(bounds)
         
-        # Random search
-        for i in range(n_iterations):
-            # Generate random parameters
-            params = {}
-            for param_name, param_range in param_ranges.items():
-                if isinstance(param_range[0], int):
+        # Initial sampling
+        X_sample = np.zeros((n_initial_points, dim))
+        for i in range(n_initial_points):
+            for j in range(dim):
+                if isinstance(bounds[j][0], int):
                     # Integer parameter
-                    params[param_name] = random.randint(param_range[0], param_range[1])
+                    X_sample[i, j] = random.randint(bounds[j][0], bounds[j][1])
                 else:
                     # Float parameter
-                    params[param_name] = random.uniform(param_range[0], param_range[1])
+                    X_sample[i, j] = random.uniform(bounds[j][0], bounds[j][1])
+        
+        # Evaluate the objective function at the initial points
+        Y_sample = np.zeros((n_initial_points, 1))
+        for i in range(n_initial_points):
+            params = {param_names[j]: X_sample[i, j] for j in range(dim)}
+            Y_sample[i] = objective_func(params)
             
-            # Evaluate initial parameters
-            score = objective_func(params)
+        # Initialize progress bar
+        pbar = tqdm(total=n_iterations, desc="Bayesian Optimization")
             
-            # Hill climbing
-            improved = True
-            while improved:
-                improved = False
-                
-                # Try neighbors
-                for _ in range(n_neighbors):
-                    # Create a neighbor by perturbing one parameter
-                    neighbor_params = params.copy()
-                    param_to_perturb = random.choice(list(param_ranges.keys()))
-                    param_range = param_ranges[param_to_perturb]
-                    
-                    # Perturb parameter
-                    if isinstance(param_range[0], int):
-                        # Integer parameter - perturb by up to 10% of range
-                        perturb_amount = random.randint(
-                            -max(1, int((param_range[1] - param_range[0]) * 0.1)),
-                            max(1, int((param_range[1] - param_range[0]) * 0.1))
-                        )
-                        new_value = neighbor_params[param_to_perturb] + perturb_amount
-                        # Keep within bounds
-                        new_value = max(param_range[0], min(param_range[1], new_value))
-                        neighbor_params[param_to_perturb] = new_value
-                    else:
-                        # Float parameter - perturb by up to 10% of range
-                        perturb_amount = random.uniform(
-                            -(param_range[1] - param_range[0]) * 0.1,
-                            (param_range[1] - param_range[0]) * 0.1
-                        )
-                        new_value = neighbor_params[param_to_perturb] + perturb_amount
-                        # Keep within bounds
-                        new_value = max(param_range[0], min(param_range[1], new_value))
-                        neighbor_params[param_to_perturb] = new_value
-                    
-                    # Evaluate neighbor
-                    neighbor_score = objective_func(neighbor_params)
-                    
-                    # If better, move to neighbor
-                    if neighbor_score > score:
-                        params = neighbor_params
-                        score = neighbor_score
-                        improved = True
-                        break
-            
-            # Update best parameters
-            if score > best_score:
-                best_params = params.copy()
-                best_score = score
-            
+        # Define the kernel for the Gaussian Process
+        kernel = ConstantKernel(1.0) * Matern(nu=2.5, length_scale_bounds=(1e-5, 1e5))
+        
+        # Initialize Gaussian Process Regressor
+        gpr = GaussianProcessRegressor(
+            kernel=kernel,
+            n_restarts_optimizer=10,
+            normalize_y=True,
+            alpha=1e-6  # Noise level
+        )
+        
+        # Create grid for expected improvement calculation
+        # For efficiency, we use a grid approach rather than randomized sampling
+        X_grid = np.zeros((10000, dim))
+        grid_points = max(10, int(10000 ** (1/dim)))  # Adjust grid size based on dimensionality
+        
+        # Current best solution
+        best_idx = np.argmax(Y_sample)
+        current_best_params = {param_names[j]: X_sample[best_idx, j] for j in range(dim)}
+        current_best_score = Y_sample[best_idx][0]
+        
+        # Iterative optimization
+        for i in range(n_iterations):
             # Update progress bar
             pbar.update(1)
+            
+            # Fit the Gaussian Process
+            try:
+                gpr.fit(X_sample, Y_sample)
+            except Exception as e:
+                print(f"Warning: GPR fitting failed with error: {str(e)}. Using current best.")
+                continue
+                
+            # Generate random grid
+            for j in range(dim):
+                if isinstance(bounds[j][0], int):
+                    # Integer parameter - uniform sampling
+                    grid_values = np.random.randint(bounds[j][0], bounds[j][1] + 1, size=grid_points)
+                else:
+                    # Float parameter - uniform sampling within bounds
+                    grid_values = np.random.uniform(bounds[j][0], bounds[j][1], size=grid_points)
+                
+                # Tile for other dimensions
+                grid_values = np.tile(grid_values, grid_points ** (dim - 1 - j))
+                grid_values = np.repeat(grid_values, grid_points ** j)
+                X_grid[:, j] = grid_values[:10000]  # Ensure we don't exceed grid size
+            
+            # Compute expected improvement
+            try:
+                ei = self._expected_improvement(X_grid, X_sample, Y_sample, gpr, xi=xi)
+            except Exception as e:
+                print(f"Warning: EI computation failed with error: {str(e)}. Using random selection.")
+                # Fallback to random selection
+                next_sample_idx = np.random.randint(0, len(X_grid))
+            else:
+                # Find the point with maximum expected improvement
+                next_sample_idx = np.argmax(ei)
+            
+            # Check if the selected point has already been sampled
+            # We ensure some level of exploration by checking for duplicates
+            next_sample = X_grid[next_sample_idx].reshape(1, -1)
+            if np.any(np.all(X_sample == next_sample, axis=1)):
+                # If already sampled, pick another point with EI in top 10%
+                top_indices = np.argsort(ei)[-int(len(ei) * 0.1):]
+                for alt_idx in top_indices:
+                    alt_sample = X_grid[alt_idx].reshape(1, -1)
+                    if not np.any(np.all(X_sample == alt_sample, axis=1)):
+                        next_sample = alt_sample
+                        break
+            
+            # Convert to parameters dictionary
+            next_params = {}
+            for j in range(dim):
+                value = next_sample[0, j]
+                # Round integer parameters
+                if isinstance(bounds[j][0], int):
+                    value = int(round(value))
+                next_params[param_names[j]] = value
+            
+            # Evaluate the objective function at the new point
+            next_score = objective_func(next_params)
+            
+            # Update samples
+            X_sample = np.vstack((X_sample, next_sample))
+            Y_sample = np.vstack((Y_sample, next_score))
+            
+            # Update best solution if needed
+            if next_score > current_best_score:
+                current_best_params = next_params
+                current_best_score = next_score
+                print(f"New best score: {current_best_score} with params: {current_best_params}")
         
         pbar.close()
         
-        return {'params': best_params, 'score': best_score}
+        return {'params': current_best_params, 'score': current_best_score}
     
-    def optimize_mean_reversion(self, product, day_index=0, n_iterations=50):
+    def optimize_mean_reversion(self, product, day_index=0, n_iterations=30):
         """
-        Optimize mean reversion strategy parameters
+        Optimize mean reversion strategy parameters using Bayesian optimization
         """
-        print(f"\nOptimizing Mean Reversion strategy for {product} using enhanced search...")
+        print(f"\nOptimizing Mean Reversion strategy for {product} using Bayesian Optimization...")
         
         # Define parameter ranges
         param_ranges = {
@@ -490,7 +574,7 @@ class SimpleOptimizer:
             'entry_threshold': (0.2, 1.5),  # Wider range to catch more opportunities
             'exit_threshold': (0.1, 0.8),  # Exit threshold should be smaller than entry
             'position_limit': (20, 50),
-            'order_size': (5, 25)  # Smaller orders can help find more trading opportunities
+            'order_size': (5, 25)  # Base order quantity
         }
         
         # Define objective function
@@ -514,11 +598,11 @@ class SimpleOptimizer:
         
         # Run optimization
         start_time = time.time()
-        result = self.random_search_with_hill_climbing(
+        result = self.bayesian_optimization(
             objective,
             param_ranges,
             n_iterations=n_iterations,
-            n_neighbors=5
+            n_initial_points=10
         )
         elapsed_time = time.time() - start_time
         
@@ -552,11 +636,11 @@ class SimpleOptimizer:
             'elapsed_time': elapsed_time
         }
     
-    def optimize_order_book_imbalance(self, product, day_index=0, n_iterations=50):
+    def optimize_order_book_imbalance(self, product, day_index=0, n_iterations=30):
         """
-        Optimize order book imbalance strategy parameters
+        Optimize order book imbalance strategy parameters using Bayesian optimization
         """
-        print(f"\nOptimizing Order Book Imbalance strategy for {product} using enhanced search...")
+        print(f"\nOptimizing Order Book Imbalance strategy for {product} using Bayesian Optimization...")
         
         # Define parameter ranges
         param_ranges = {
@@ -588,11 +672,11 @@ class SimpleOptimizer:
         
         # Run optimization
         start_time = time.time()
-        result = self.random_search_with_hill_climbing(
+        result = self.bayesian_optimization(
             objective,
             param_ranges,
             n_iterations=n_iterations,
-            n_neighbors=5
+            n_initial_points=10
         )
         elapsed_time = time.time() - start_time
         
@@ -685,7 +769,7 @@ class SimpleOptimizer:
             print(f"Warning: Failed to create visualization for {product}: {str(e)}")
             plt.close('all')  # Close any open figures
     
-    def optimize_all_products(self, day_index=0, n_iterations=50):
+    def optimize_all_products(self, day_index=0, n_iterations=30):
         """
         Optimize all products with their appropriate strategies
         """
@@ -752,11 +836,11 @@ class SimpleOptimizer:
         summary_df = pd.DataFrame(summary_data)
         
         # Save to CSV
-        summary_df.to_csv("optimization_results/enhanced_optimization_summary.csv", index=False)
+        summary_df.to_csv("optimization_results/bayesian_optimization_summary.csv", index=False)
         
         # Generate summary text file
-        with open("optimization_results/enhanced_optimization_summary.txt", "w") as f:
-            f.write("ENHANCED OPTIMIZATION SUMMARY\n")
+        with open("optimization_results/bayesian_optimization_summary.txt", "w") as f:
+            f.write("BAYESIAN OPTIMIZATION SUMMARY\n")
             f.write("===========================\n\n")
             
             for product, result in optimization_results.items():
@@ -779,10 +863,11 @@ class SimpleOptimizer:
                 f.write("\n")
         
         # Save optimization results as JSON for the trading algorithm to use
-        with open("optimization_results/enhanced_optimization_summary.json", "w") as f:
+        with open("optimization_results/optimization_summary.json", "w") as f:
             json.dump(trading_params, f, indent=2)
             
-        print("\nOptimization summary saved to optimization_results/enhanced_optimization_summary.*")
+        print("\nOptimization summary saved to optimization_results/bayesian_optimization_summary.*")
+        print("Trading parameters saved to optimization_results/optimization_summary.json")
         
         # Create comparative visualization
         self._create_comparative_visualization(summary_df)
@@ -810,17 +895,17 @@ class SimpleOptimizer:
         plt.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig("optimization_results/enhanced_strategy_comparison.png")
+        plt.savefig("optimization_results/bayesian_strategy_comparison.png")
         plt.close()
 
 def main():
     """Main function to run the optimization"""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Run enhanced optimization for trading strategies')
+    parser = argparse.ArgumentParser(description='Run Bayesian optimization for trading strategies')
     parser.add_argument('--data-folder', type=str, default='./data', help='Path to data folder')
     parser.add_argument('--day', type=int, default=0, help='Day index to optimize for (default: 0)')
-    parser.add_argument('--iterations', type=int, default=50, help='Number of optimization iterations (default: 50)')
+    parser.add_argument('--iterations', type=int, default=30, help='Number of optimization iterations (default: 30)')
     parser.add_argument('--product', type=str, default=None, help='Specific product to optimize (optional)')
     args = parser.parse_args()
     
@@ -828,7 +913,7 @@ def main():
     os.makedirs("optimization_results", exist_ok=True)
     
     # Create and setup optimizer
-    optimizer = SimpleOptimizer(data_folder=args.data_folder)
+    optimizer = BayesianOptimizer(data_folder=args.data_folder)
     optimizer.load_data()
     
     start_time = time.time()

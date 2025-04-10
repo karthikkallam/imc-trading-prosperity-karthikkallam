@@ -1,83 +1,143 @@
-# IMC Prosperity Trading Algorithm
+# IMC Prosperity Trading with Bayesian Optimization
 
-This repository contains my trading algorithm for the IMC Trading Prosperity Challenge with optimization framework.
+This repository contains an advanced trading algorithm for the IMC Prosperity Challenge with integrated Bayesian optimization for parameter tuning.
 
-## Key Files
+## Key Features
 
-- `trading_algorithm.py`: Main trading algorithm that uses optimized parameters
-- `optimization_framework.py`: Framework for backtesting and optimizing strategies 
-- `quick_optimization.py`: Streamlined optimization script for faster testing
-- `parameter_tuning_dashboard.py`: Interactive dashboard for strategy visualization
-- `run_optimization.py`: Script to run the optimization process
+- Sophisticated trading strategies for each product:
+  - RAINFOREST_RESIN: Mean reversion with stable fair value (10000)
+  - KELP: Mean reversion with dynamic moving average for fluctuating products
+  - SQUID_INK: Order book imbalance strategy for pattern-based trading
+- Bayesian optimization for optimal parameter selection
+- Robust error handling and parameter consistency
+- Multiple optimization frameworks for different needs
 
-## Trading Strategies
-
-The algorithm implements specialized trading strategies for each product:
-
-1. **RAINFOREST_RESIN**: Mean reversion strategy with stable fair value (10000)
-2. **KELP**: Mean reversion with dynamic moving average for products that fluctuate
-3. **SQUID_INK**: Order book imbalance strategy for pattern-based trading
-
-## Getting Started
+## Quick Start
 
 ### Installation
 
-1. Clone this repository
+1. Clone or download this repository
 2. Install dependencies:
    ```
    pip install -r requirements.txt
    ```
-3. Make sure the data files are in the correct directory structure:
+   For Bayesian optimization, you'll also need:
    ```
-   data/round-1-island-data-bottle/prices_round_1_day_*.csv
-   data/round-1-island-data-bottle/trades_round_1_day_*.csv
+   pip install scipy scikit-learn
    ```
 
 ### Running the Optimization
 
-1. Run the optimization script:
+There are three ways to run the optimization, in order of increasing effectiveness:
+
+1. **Quick Optimization** (fastest but least thorough):
+
    ```bash
-   # For full optimization (takes longer but more thorough)
-   python run_optimization.py
-   
-   # For quick optimization (faster but less comprehensive)
    python run_optimization.py --quick
-   
-   # To specify a different data folder
-   python run_optimization.py --data-folder /path/to/data
    ```
 
-2. Launch the parameter tuning dashboard:
+2. **Full Grid Search** (thorough but time-consuming):
+
    ```bash
-   python run_optimization.py --dashboard
-   # OR
-   streamlit run parameter_tuning_dashboard.py
+   python run_optimization.py
    ```
 
-### Using the Trading Algorithm
+3. **Bayesian Optimization** (most effective, recommended):
+   ```bash
+   python run_optimization.py --bayesian
+   ```
 
-After optimization, the best parameters are saved to `optimization_results/optimization_summary.json` and automatically loaded by the trading algorithm.
+You can also specify the number of iterations for the optimization:
 
-To submit to the IMC Prosperity platform:
+```bash
+python run_optimization.py --bayesian --iterations 50
 ```
-Upload trading_algorithm.py and select the Trader class
+
+To optimize just a specific product:
+
+```bash
+python run_optimization.py --bayesian --product RAINFOREST_RESIN
 ```
 
-## Features
+### Interactive Parameter Tuning
 
-- Automatic parameter optimization for each product
-- Interactive visualization dashboard for parameter tuning
-- Position limit management for all products
-- Advanced order book analysis and imbalance detection
-- Moving average calculation and trend detection
-- Take-profit and stop-loss risk management
-- Robust data preprocessing and feature engineering
+Launch the parameter tuning dashboard:
 
-## Optimization Results
+```bash
+python run_optimization.py --dashboard
+```
 
-After running the optimization, view the results in:
+### Submitting to IMC Prosperity
 
-- `optimization_results/optimization_summary.csv`: Tabular format of best parameters
-- `optimization_results/optimization_summary.txt`: Text report with details
-- `optimization_results/optimization_summary.json`: Parameter file used by the algorithm
-- `optimization_results/*.png`: Visualization charts for each strategy
+After optimization, the best parameters are automatically saved to `optimization_results/optimization_summary.json` and will be loaded by the trading algorithm.
+
+To submit to the platform, upload `trading_algorithm.py`.
+
+## Optimization Framework
+
+The system includes three optimization approaches:
+
+1. **Quick Optimization** (`quick_optimization.py`): Fast, simplified grid search
+2. **Full Grid Search** (`optimization_framework.py`): Comprehensive grid search
+3. **Bayesian Optimization** (`bayesian_optimization.py`): Advanced optimization using Gaussian Processes
+
+### How Bayesian Optimization Works
+
+Unlike grid search, Bayesian optimization uses Gaussian Processes to model the performance landscape. It strategically samples parameter combinations by:
+
+1. Building a probabilistic model of the objective function
+2. Using an acquisition function (Expected Improvement) to determine where to sample next
+3. Balancing exploration of unknown regions with exploitation of promising areas
+4. Converging to optimal parameters more efficiently than grid search
+
+## Trading Algorithm
+
+The trading algorithm (`trading_algorithm.py`) implements sophisticated strategies:
+
+- **Mean Reversion**: For RAINFOREST_RESIN and KELP
+  - Identifies when prices deviate from moving averages
+  - Uses dynamic thresholds based on volatility
+  - Incorporates advanced inventory management
+- **Order Book Imbalance**: For SQUID_INK
+  - Analyzes order book depth and imbalance
+  - Combines with trend indicators
+  - Uses take-profit and stop-loss mechanisms
+
+## Data Structure
+
+The system expects data in the following format:
+
+```
+data/round-1-island-data-bottle/prices_round_1_day_{-2,-1,0}.csv
+data/round-1-island-data-bottle/trades_round_1_day_{-2,-1,0}.csv
+```
+
+## Results and Visualization
+
+After optimization, results are saved to:
+
+- `optimization_results/optimization_summary.json`: Parameters used by the algorithm
+- `optimization_results/bayesian_optimization_summary.csv`: Tabular results
+- `optimization_results/bayesian_optimization_summary.txt`: Text report
+- `optimization_results/*.png`: Performance visualizations
+
+## Troubleshooting
+
+- **Parameter format issues**: Make sure optimization results are in the correct format
+- **Missing dependencies**: For Bayesian optimization, install sklearn and scipy
+- **Data not found**: Verify data files are in the expected locations
+- **Error handling**: The algorithm has built-in error handling for robustness
+
+## Advanced Usage
+
+- Modify parameter ranges in each optimization script
+- Adjust acquisition function parameters for Bayesian optimization
+- Customize trading strategy parameters directly in the algorithm
+
+## Contributing
+
+Feel free to enhance the algorithm with additional strategies and optimizations. Key areas for improvement:
+
+- Support for more products and strategies
+- Advanced machine learning features
+- Reinforcement learning approaches
