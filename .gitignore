@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# Virtual environments
+.venv/
+env/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Eclipse
+.eclipse/
+org.eclipse.*
+
+# macOS
+.DS_Store
+
+# GitHub
+.git/
+.gitattributes
+.gitattributes.lock
+
+# Cache & build
+cache/
+build/
+dist/
+*.log
+
+# Secrets / PGP / Keys
+pgp/
+*.key
+*.pem
+*.crt
+
+# Misc
+*.sqlite3

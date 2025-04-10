@@ -25,17 +25,53 @@ class StrategyOptimizer:
         """
         Load price and trade data for all days
         """
-        # Price files
-        price_files = [
-            os.path.join(self.data_folder, f"prices_round_1_day_{i}.csv") 
-            for i in range(3)
-        ]
+        # Price files - Try from data folder first, then from round-1-island-data-bottle
+        price_files = []
+        trade_files = []
         
-        # Trade files
-        trade_files = [
-            os.path.join(self.data_folder, f"trades_round_1_day_{i}.csv") 
-            for i in range(3)
-        ]
+        # Check if files exist in data folder
+        data_folder_exists = os.path.exists(self.data_folder)
+        if not data_folder_exists:
+            print(f"Warning: {self.data_folder} directory not found. Creating it...")
+            os.makedirs(self.data_folder, exist_ok=True)
+            
+        # Try to find files in current directory, data folder, or round-1-island-data-bottle
+        for i in range(3):
+            price_file_paths = [
+                f"prices_round_1_day_{i}.csv",  # Current directory
+                os.path.join(self.data_folder, f"prices_round_1_day_{i}.csv"),  # data folder
+                os.path.join("round-1-island-data-bottle", f"prices_round_1_day_{i}.csv")  # island data bottle
+            ]
+            
+            trade_file_paths = [
+                f"trades_round_1_day_{i}.csv",  # Current directory
+                os.path.join(self.data_folder, f"trades_round_1_day_{i}.csv"),  # data folder
+                os.path.join("round-1-island-data-bottle", f"trades_round_1_day_{i}.csv")  # island data bottle
+            ]
+            
+            # Find first existing price file
+            price_file = None
+            for path in price_file_paths:
+                if os.path.exists(path):
+                    price_file = path
+                    break
+            
+            if price_file:
+                price_files.append(price_file)
+            else:
+                print(f"Warning: Could not find prices_round_1_day_{i}.csv in any location")
+            
+            # Find first existing trade file
+            trade_file = None
+            for path in trade_file_paths:
+                if os.path.exists(path):
+                    trade_file = path
+                    break
+            
+            if trade_file:
+                trade_files.append(trade_file)
+            else:
+                print(f"Warning: Could not find trades_round_1_day_{i}.csv in any location")
         
         # Load all price data
         all_price_data = []
@@ -104,7 +140,7 @@ class StrategyOptimizer:
             product_df['imbalance_ratio'] = (
                 (product_df['total_bid_volume'] - product_df['total_ask_volume']) / 
                 (product_df['total_bid_volume'] + product_df['total_ask_volume'])
-            )
+            ).fillna(0)  # Handle division by zero
             
             # Store processed data
             self.product_data[product] = product_df

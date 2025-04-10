@@ -33,7 +33,16 @@ def create_dashboard():
     
     # Data loading section
     st.sidebar.subheader("Data")
-    data_folder = st.sidebar.text_input("Data Folder Path", value="./data")
+    
+    # Automatically detect possible data folders
+    possible_folders = ["./data", "./round-1-island-data-bottle", "./"]
+    valid_folders = [folder for folder in possible_folders if os.path.exists(folder)]
+    
+    data_folder = st.sidebar.selectbox(
+        "Data Folder Path",
+        options=valid_folders,
+        index=0 if valid_folders else None
+    )
     
     # Initialize optimizer
     optimizer = None
@@ -49,6 +58,7 @@ def create_dashboard():
                 st.sidebar.success("Data loaded successfully!")
             except Exception as e:
                 st.sidebar.error(f"Error loading data: {str(e)}")
+                st.error(f"Detailed error: {str(e)}")
     
     # Check if optimizer exists in session state
     if 'optimizer' in st.session_state:
@@ -187,6 +197,7 @@ def create_dashboard():
                     st.sidebar.success(f"Backtest completed in {st.session_state['backtest_time']:.2f} seconds!")
                 except Exception as e:
                     st.sidebar.error(f"Error running backtest: {str(e)}")
+                    st.error(f"Detailed error: {str(e)}")
         
         # Run grid search button
         if st.sidebar.button("Run Grid Search"):
@@ -222,6 +233,7 @@ def create_dashboard():
                     st.sidebar.success(f"Grid search completed in {st.session_state['grid_search_time']:.2f} seconds!")
                 except Exception as e:
                     st.sidebar.error(f"Error running grid search: {str(e)}")
+                    st.error(f"Detailed error: {str(e)}")
         
         # Main content area
         st.header(f"{product} - {strategy} Strategy")
@@ -326,8 +338,22 @@ def create_dashboard():
         # Show example results
         st.header("Example Results")
         
-        # Show sample image
-        st.image("https://i.imgur.com/HVQMkKG.png", caption="Sample Backtest Results", use_column_width=True)
+        # Create sample visualization for demonstration
+        try:
+            # Create a simple sample chart to display
+            fig, ax = plt.subplots(figsize=(10, 5))
+            x = np.linspace(0, 10, 100)
+            y = np.sin(x)
+            ax.plot(x, y)
+            ax.set_title("Sample Visualization (Will be replaced with actual data)")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Value")
+            ax.grid(True)
+            st.pyplot(fig)
+            plt.close(fig)
+        except:
+            # Fallback to text if matplotlib fails
+            st.write("Visualization will appear here after loading data")
         
         st.markdown("""
         This dashboard allows you to:
