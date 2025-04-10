@@ -678,7 +678,6 @@ class StrategyOptimizer:
                 'Best PnL': best_pnl,
                 **best_params
             })
-        
         # Create summary DataFrame
         summary_df = pd.DataFrame(summary_data)
         

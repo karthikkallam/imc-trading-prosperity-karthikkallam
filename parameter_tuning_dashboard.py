@@ -365,6 +365,5 @@ def create_dashboard():
         
         To get started, click on "Load Data" in the sidebar.
         """)
-
 if __name__ == "__main__":
     create_dashboard()
